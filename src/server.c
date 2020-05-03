@@ -37,11 +37,12 @@ int main(int argc, char *argv[])
         LOGI("got connection from %s:%d", inet_ntoa(clients[i].ip), ntohs(clients[i].port));
         i++;
         if (i == 2) {
-            LOGI("setup p2p link");
+            LOGI("tell client 0 that client 1 info %s:%d", inet_ntoa(clients[1].ip), ntohs(clients[1].port));
             addr.sin_addr = clients[0].ip;
             addr.sin_port = clients[0].port;
             sendto(sockfd, &clients[1], sizeof(client_info_t), 0, (struct sockaddr *)&addr, addrlen);
 
+            LOGI("tell client 1 that client 0 info %s:%d", inet_ntoa(clients[0].ip), ntohs(clients[0].port));
             addr.sin_addr = clients[1].ip;
             addr.sin_port = clients[1].port;
             sendto(sockfd, &clients[0], sizeof(client_info_t), 0, (struct sockaddr *)&addr, addrlen);
