@@ -32,9 +32,10 @@ int main(int argc, char *argv[])
         LOGI("waiting for connection");
         bzero(clients, sizeof(clients));
         recvfrom(sockfd, data, sizeof(data), 0, (struct sockaddr *)&addr, &addrlen);
-        memcpy(&clients[i++].ip, &addr.sin_addr, sizeof(struct in_addr));
+        memcpy(&clients[i].ip, &addr.sin_addr, sizeof(struct in_addr));
         clients[i].port = addr.sin_port;
         LOGI("got connection from %s:%d", inet_ntoa(clients[i].ip), ntohs(clients[i].port));
+        i++;
         if (i == 2) {
             LOGI("setup p2p link");
             addr.sin_addr = clients[0].ip;
