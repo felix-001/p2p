@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
         char data[10] = {0};
 
         LOGI("waiting for connection");
-        bzero(clients, sizeof(clients));
+        bzero(&clients[i], sizeof(client_info_t));
         recvfrom(sockfd, data, sizeof(data), 0, (struct sockaddr *)&addr, &addrlen);
         memcpy(&clients[i].ip, &addr.sin_addr, sizeof(struct in_addr));
         clients[i].port = addr.sin_port;
