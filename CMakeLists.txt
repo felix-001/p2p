@@ -15,7 +15,7 @@ endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src )
 
 add_executable(p2p-server src/server.c)
-add_executable(p2p-clinet src/client.c)
+add_executable(p2p-client src/client.c)
 
 set(SRCS src/servr.c src/client.c)
 
