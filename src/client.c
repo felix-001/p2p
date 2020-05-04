@@ -32,14 +32,16 @@ int main(int argc, char *argv[])
 
     sendto(sockfd, &ch, sizeof(ch), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     recvfrom(sockfd, &client, sizeof(client_info_t), 0, (struct sockaddr *)&addr, &addrlen);
-    LOGI("got connection from %s:%d",inet_ntoa(client.ip), ntohs(client.port));
+    LOGI("the other addr %s:%d",inet_ntoa(client.ip), ntohs(client.port));
 
     addr.sin_addr = client.ip;
     addr.sin_port = client.port;
     sendto(sockfd, &ch, sizeof(ch), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    LOGI("create table to %s:%d", inet_ntoa(client.ip), ntohs(client.port) );
     int mode = atoi(argv[3]);
     if (mode) {
         char buf[100] = "this is a p2p message";
+        sleep(2);
         LOGI("send data to %s:%d",inet_ntoa(client.ip), ntohs(client.port));
         sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     } else {
