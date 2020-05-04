@@ -14,7 +14,7 @@ void server_loop(int sockfd, struct sockaddr_in *addr)
         socklen_t addrlen; 
 
         recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)addr, &addrlen);
-        LOGI("recv data from %s:%d %s",inet_ntoa(addr->sin_addr), ntohs(addr->sin_port), buf);
+        printf("recv data from %s:%d %s",inet_ntoa(addr->sin_addr), ntohs(addr->sin_port), buf);
     }
 }
 
