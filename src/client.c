@@ -65,10 +65,7 @@ int main(int argc, char *argv[])
     sleep(1);
     int mode = atoi(argv[3]);
     if (mode) {
-        char buf[100] = "this is a p2p message";
-        sleep(2);
-        LOGI("send data to %s:%d",inet_ntoa(client.ip), ntohs(client.port));
-        sendto(sockfd, buf, strlen(buf), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+        client_loop(sockfd, &addr);
     } else {
         server_loop(sockfd, &addr);
     }
