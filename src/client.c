@@ -7,6 +7,29 @@
 
 #include "public.h"
 
+void server_loop(int sockfd, struct sockaddr_in *addr)
+{
+    for(;;) {
+        char buf[100] = {0};
+        socklen_t addrlen; 
+
+        recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)addr, &addrlen);
+        LOGI("recv data from %s:%d %s",inet_ntoa(addr->sin_addr), ntohs(addr->sin_port), buf);
+    }
+}
+
+void client_loop(int sockfd, struct sockaddr_in *addr) 
+{
+    for(;;) {
+        char buf[100] = {0};
+
+        printf(">> ");
+        fflush(stdout);
+        fgets(buf, sizeof(buf)-1, stdin); 
+        sendto(sockfd, buf, strlen(buf), 0, (struct sockaddr *)addr, sizeof(struct sockaddr_in));
+    }
+}
+
 int main(int argc, char *argv[])
 {
     if (!argv[1] || !argv[2] || !argv[3]) {
@@ -38,7 +61,8 @@ int main(int argc, char *argv[])
     addr.sin_port = client.port;
     char buf[] = "peer send message";
     sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
-    LOGI("create hole to %s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port) );
+    LOGI("allow %s:%d to access me", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port) );
+    sleep(1);
     int mode = atoi(argv[3]);
     if (mode) {
         char buf[100] = "this is a p2p message";
@@ -46,9 +70,7 @@ int main(int argc, char *argv[])
         LOGI("send data to %s:%d",inet_ntoa(client.ip), ntohs(client.port));
         sendto(sockfd, buf, strlen(buf), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     } else {
-        char buf[100] = {0};
-        recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&addr, &addrlen);
-        LOGI("recv data from %s:%d %s",inet_ntoa(client.ip), ntohs(client.port), buf);
+        server_loop(sockfd, &addr);
     }
     close(sockfd);
     return 0;
