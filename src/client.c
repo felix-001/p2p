@@ -59,6 +59,7 @@ int main(int argc, char *argv[])
 
     addr.sin_addr = client.ip;
     addr.sin_port = client.port;
+    LOGI("the other addr %s:%d",inet_ntoa(client.ip), ntohs(addr.sin_port));
     int mode = atoi(argv[3]);
     if (mode)
         addr.sin_port += 1;
