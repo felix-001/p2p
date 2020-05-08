@@ -59,11 +59,13 @@ int main(int argc, char *argv[])
 
     addr.sin_addr = client.ip;
     addr.sin_port = client.port;
+    int mode = atoi(argv[3]);
+    if (mode)
+        addr.sin_port += 1;
     char buf[] = "peer send message";
     sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     LOGI("allow %s:%d to access me", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port) );
     sleep(1);
-    int mode = atoi(argv[3]);
     if (mode) {
         client_loop(sockfd, &addr);
     } else {
