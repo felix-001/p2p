@@ -61,8 +61,6 @@ int main(int argc, char *argv[])
     addr.sin_port = client.port;
     LOGI("the other addr %s:%d",inet_ntoa(client.ip), ntohs(addr.sin_port));
     int mode = atoi(argv[3]);
-    if (mode)
-        addr.sin_port = htons(ntohs(addr.sin_port)-28871);
     char buf[] = "peer send message";
     sendto(sockfd, buf, sizeof(buf), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     LOGI("allow %s:%d to access me", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port) );
