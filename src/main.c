@@ -16,8 +16,8 @@ static struct mqtt_client client;
 static uint8_t sendbuf[2048];
 static uint8_t recvbuf[1024];
 static int server_mode = 0;
-static char tuple[64];
-static char mac[16];
+static char tuple[128];
+static char g_mac[16];
 
 static void* client_refresher(void* client)
 {
@@ -87,7 +87,7 @@ void nat_hole(char *tuple)
         enum MQTTErrors mqtt_ret;
 
         LOGI("send tuple to client");
-        mqtt_ret = mqtt_publish(&client, mac, tuple, strlen(tuple), 0);
+        mqtt_ret = mqtt_publish(&client, g_mac, tuple, strlen(tuple), 0);
         if (mqtt_ret != MQTT_OK) {
             LOGE("mqtt_ret:%d", mqtt_ret);
             return;
@@ -157,6 +157,7 @@ int main(int argc, char *argv[])
     int err = 0;
     struct sockaddr_in addr;
     enum MQTTErrors mqtt_ret;
+    char mac[16] = {0}; 
 
     if (!argv[1]) {
         printf("usage: %s <mac_address>\n", argv[0]);
@@ -170,6 +171,7 @@ int main(int argc, char *argv[])
     if (mqtt_create(BROKER, PORT, NULL, NULL) < 0) {
         return 0;
     }
+    strcpy(g_mac, argv[1]);
 
     if (get_mac_addr(mac) < 0 ) {
         if (server_mode) {
