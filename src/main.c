@@ -86,11 +86,13 @@ void nat_hole(char *tuple)
     if (server_mode) {
         enum MQTTErrors mqtt_ret;
 
+        LOGI("send tuple to client");
         mqtt_ret = mqtt_publish(&client, mac, tuple, strlen(tuple), 1);
         if (mqtt_ret != MQTT_OK) {
             LOGE("mqtt_ret:%d", mqtt_ret);
             return;
         }
+        LOGI("server publish done");
     }
     sub = strstr(tuple, ":");
     if (!sub) {
