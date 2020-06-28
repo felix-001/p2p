@@ -110,6 +110,7 @@ void publish_callback(void** unused, struct mqtt_response_publish *published)
     memcpy(topic_name, published->topic_name, published->topic_name_size);
     topic_name[published->topic_name_size] = '\0';
     LOGI("Received publish('%s'): %s", topic_name, (const char*) published->application_message);
+    nat_hole((char*) published->application_message);
 
     free(topic_name);
 }
