@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
         }
     }
     LOGI("mac: %s", mac);
-    mqtt_ret = mqtt_subscribe(&client, mac, 1);
+    mqtt_ret = mqtt_subscribe(&client, mac, 0);
     if (mqtt_ret != MQTT_OK) {
         LOGE("mqtt_ret:%d", mqtt_ret);
         return 0;
