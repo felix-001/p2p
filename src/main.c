@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    if (!strcmp(argv[2], "server")) {
+    if (argv[2] && !strcmp(argv[2], "server")) {
         server_mode = 1;
     }
 
