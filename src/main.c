@@ -87,7 +87,7 @@ void nat_hole(char *tuple)
         enum MQTTErrors mqtt_ret;
 
         LOGI("send tuple to client");
-        mqtt_ret = mqtt_publish(&client, mac, tuple, strlen(tuple), 1);
+        mqtt_ret = mqtt_publish(&client, mac, tuple, strlen(tuple), 0);
         if (mqtt_ret != MQTT_OK) {
             LOGE("mqtt_ret:%d", mqtt_ret);
             return;
@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
     LOGI("mapped addr: %s:%d", inet_ntoa(addr.sin_addr), addr.sin_port);
     sprintf(tuple, "%s:%d", inet_ntoa(addr.sin_addr), addr.sin_port);
     if (!server_mode) {
-        mqtt_ret = mqtt_publish(&client, argv[1], tuple, strlen(tuple), 1);
+        mqtt_ret = mqtt_publish(&client, argv[1], tuple, strlen(tuple), 0);
         if (mqtt_ret != MQTT_OK) {
             LOGE("mqtt_ret:%d", mqtt_ret);
             return 0;
