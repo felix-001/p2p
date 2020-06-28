@@ -118,8 +118,14 @@ int mqtt_create(char *mqtt_host, char * port,  char *user, char *passwd)
     char mac[16] = {0};
     pthread_t client_daemon;
 
-    if (get_mac_addr(mac) < 0)
-        goto err;
+    if (get_mac_addr(mac) < 0) {
+        if (server_mode) {
+            strcpy(mac, "6c92bf328740");
+        } else {
+            LOGE("get mac addr error");
+            goto err;
+        }
+    }
     sockfd = open_nb_socket(mqtt_host, port);
     if (sockfd == -1) {
         perror("Failed to open socket: ");
@@ -158,9 +164,13 @@ int main(int argc, char *argv[])
         server_mode = 1;
     }
 
-    if (get_mac_addr(mac) < 0) {
-        LOGE("get mac addr error");
-        return 0;
+    if (get_mac_addr(mac) < 0 ) {
+        if (server_mode) {
+            strcpy(mac, "6c92bf328740");
+        } else {
+            LOGE("get mac addr error");
+            return 0;
+        }
     }
     LOGI("mac: %s", mac);
     mqtt_ret = mqtt_subscribe(&client, mac, 1);
