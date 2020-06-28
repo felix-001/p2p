@@ -164,6 +164,10 @@ int main(int argc, char *argv[])
         server_mode = 1;
     }
 
+    if (mqtt_create(BROKER, PORT, NULL, NULL) < 0) {
+        return 0;
+    }
+
     if (get_mac_addr(mac) < 0 ) {
         if (server_mode) {
             strcpy(mac, "6c92bf328740");
@@ -185,9 +189,6 @@ int main(int argc, char *argv[])
     }
     LOGI("mapped addr: %s:%d", inet_ntoa(addr.sin_addr), addr.sin_port);
     sprintf(tuple, "%s:%d", inet_ntoa(addr.sin_addr), addr.sin_port);
-    if (mqtt_create(BROKER, PORT, NULL, NULL) < 0) {
-        return 0;
-    }
     if (!server_mode) {
         mqtt_ret = mqtt_publish(&client, argv[1], tuple, strlen(tuple), 1);
         if (mqtt_ret != MQTT_OK) {
