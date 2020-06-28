@@ -15,6 +15,9 @@
 static struct mqtt_client client;
 static uint8_t sendbuf[2048];
 static uint8_t recvbuf[1024];
+static int server_mode = 0;
+static char tuple[64];
+static char mac[16];
 
 static void* client_refresher(void* client)
 {
@@ -50,13 +53,60 @@ err:
     return -1;
 }
 
+void udp_session(char *ip, int port)
+{
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    struct sockaddr_in addr;
+    socklen_t addrlen = sizeof(struct sockaddr_in);
+    char msg[64] = {0};
+    char rcv[64] = {0};
+    
+    if (!sockfd) {
+        perror("create socket error");
+        return;
+    }
+    if (server_mode) {
+        sprintf(msg, "server: %s", tuple);
+    } else {
+        sprintf(msg, "client: %s", tuple);
+    }
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr(ip);
+    addr.sin_family = AF_INET;
+    sendto(sockfd, tuple, strlen(tuple), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    recvfrom(sockfd, rcv, sizeof(rcv), 0, (struct sockaddr *)&addr, &addrlen);
+    LOGI("%s", rcv);
+}
+
+void nat_hole(char *tuple)
+{
+    char *sub;
+
+    if (server_mode) {
+        enum MQTTErrors mqtt_ret;
+
+        mqtt_ret = mqtt_publish(&client, mac, tuple, strlen(tuple), 1);
+        if (mqtt_ret != MQTT_OK) {
+            LOGE("mqtt_ret:%d", mqtt_ret);
+            return;
+        }
+    }
+    sub = strstr(tuple, ":");
+    if (!sub) {
+        LOGE("get `:` error");
+        return;
+    }
+    *sub = '\0';
+    udp_session(tuple, atoi(sub+1));
+}
+
 void publish_callback(void** unused, struct mqtt_response_publish *published)
 {
     char* topic_name = (char*) malloc(published->topic_name_size + 1);
 
     memcpy(topic_name, published->topic_name, published->topic_name_size);
     topic_name[published->topic_name_size] = '\0';
-
     LOGI("Received publish('%s'): %s", topic_name, (const char*) published->application_message);
 
     free(topic_name);
@@ -97,32 +147,43 @@ int main(int argc, char *argv[])
 {
     int err = 0;
     struct sockaddr_in addr;
-    char mac[16] = {0};
     enum MQTTErrors mqtt_ret;
 
     if (!argv[1]) {
-        printf("usage: %s <mac_address>", argv[0]);
+        printf("usage: %s <mac_address>\n", argv[0]);
         return 0;
     }
 
+    if (!strcmp(argv[2], "server")) {
+        server_mode = 1;
+    }
+
+    if (get_mac_addr(mac) < 0) {
+        LOGE("get mac addr error");
+        return 0;
+    }
+    LOGI("mac: %s", mac);
+    mqtt_ret = mqtt_subscribe(&client, mac, 1);
+    if (mqtt_ret != MQTT_OK) {
+        LOGE("mqtt_ret:%d", mqtt_ret);
+        return 0;
+    }
     err = stun_get_mapped_addr(&addr);
     if (err < 0) {
         LOGE("stun_get_mapped_addr() error:%d", err);
         return 0;
     }
     LOGI("mapped addr: %s:%d", inet_ntoa(addr.sin_addr), addr.sin_port);
-    if (get_mac_addr(mac) < 0) {
-        LOGE("get mac addr error");
-        return 0;
-    }
-    LOGI("mac: %s", mac);
+    sprintf(tuple, "%s:%d", inet_ntoa(addr.sin_addr), addr.sin_port);
     if (mqtt_create(BROKER, PORT, NULL, NULL) < 0) {
         return 0;
     }
-    mqtt_ret = mqtt_subscribe(&client, mac, 1);
-    if (mqtt_ret != MQTT_OK) {
-        LOGE("mqtt_ret:%d", mqtt_ret);
-        return 0;
+    if (!server_mode) {
+        mqtt_ret = mqtt_publish(&client, argv[1], tuple, strlen(tuple), 1);
+        if (mqtt_ret != MQTT_OK) {
+            LOGE("mqtt_ret:%d", mqtt_ret);
+            return 0;
+        }
     }
     while(fgetc(stdin) != EOF);
     return 0;
