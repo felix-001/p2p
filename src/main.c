@@ -146,7 +146,7 @@ void onSendFailure(void* context, MQTTAsync_failureData* response)
 
 void onSend(void* context, MQTTAsync_successData* response)
 {
-	LOGI("Message with token value %d delivery confirmed\n", response->token);
+	LOGI("Message with token value %d delivery confirmed", response->token);
 }
 
 void *session_thread(void *arg)
@@ -156,6 +156,8 @@ void *session_thread(void *arg)
     nat_hole(tuple);
 
     free(tuple);
+
+    return NULL;
 }
 
 int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
@@ -177,7 +179,7 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *me
         pubmsg.qos = 0;
         pubmsg.retained = 0;
         if ((rc = MQTTAsync_sendMessage(client, g_mac, &pubmsg, &opts)) != MQTTASYNC_SUCCESS) {
-            LOGE("Failed to start sendMessage, return code %d\n", rc);
+            LOGE("Failed to start sendMessage, return code %d", rc);
         } 
     }
     LOGI("message: %.*s\n", message->payloadlen, (char*)message->payload);
