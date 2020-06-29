@@ -149,11 +149,20 @@ void onSend(void* context, MQTTAsync_successData* response)
 	LOGI("Message with token value %d delivery confirmed\n", response->token);
 }
 
+void *session_thread(void *arg)
+{
+    char *tuple = strdup((char *)arg);
+
+    nat_hole(tuple);
+
+    free(tuple);
+}
+
 int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
 {
     printf("Message arrived\n");
     printf("     topic: %s\n", topicName);
-    printf("   message: %.*s\n", message->payloadlen, (char*)message->payload);
+
     if (server_mode) {
         MQTTAsync client = (MQTTAsync)context;
         MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
@@ -171,7 +180,7 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *me
             LOGE("Failed to start sendMessage, return code %d\n", rc);
         } 
     }
-    nat_hole((char*)message->payload);
+    LOGI("message: %.*s\n", message->payloadlen, (char*)message->payload);
     MQTTAsync_freeMessage(&message);
     MQTTAsync_free(topicName);
     return 1;
