@@ -41,29 +41,29 @@ err:
 
 void onDisconnectFailure(void* context, MQTTAsync_failureData* response)
 {
-	LOGE("Disconnect failed, rc %d\n", response->code);
+	LOGE("Disconnect failed, rc %d", response->code);
     disc_finished = 1;
 }
 
 void onDisconnect(void* context, MQTTAsync_successData* response)
 {
-	LOGI("Successful disconnection\n");
+	LOGI("Successful disconnection");
     disc_finished = 1;
 }
 
 void onSubscribe(void* context, MQTTAsync_successData* response)
 {
-	LOGI("Subscribe succeeded\n");
+	LOGI("Subscribe succeeded");
 }
 
 void onSubscribeFailure(void* context, MQTTAsync_failureData* response)
 {
-	LOGE("Subscribe failed, rc %d\n", response->code);
+	LOGE("Subscribe failed, rc %d", response->code);
 }
 
 void onConnectFailure(void* context, MQTTAsync_failureData* response)
 {
-	LOGE("Connect failed, rc %d\n", response->code);
+	LOGE("Connect failed, rc %d", response->code);
 }
 
 void udp_session(char *ip, int port)
@@ -291,6 +291,7 @@ int main(int argc, char *argv[])
     LOGI("disconnect mqtt");
     disc_opts.onSuccess = onDisconnect;
 	disc_opts.onFailure = onDisconnectFailure;
+    disc_opts.context = client;
 	if ((err = MQTTAsync_disconnect(client, &disc_opts)) != MQTTASYNC_SUCCESS) {
 		LOGE("Failed to start disconnect, return code %d\n", err);
 	} else {
