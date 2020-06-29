@@ -85,7 +85,7 @@ void udp_session(char *ip, int port)
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip);
     addr.sin_family = AF_INET;
-    sendto(sockfd, tuple, strlen(tuple), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     if (server_mode) {
         sleep(1);
@@ -280,6 +280,7 @@ int main(int argc, char *argv[])
     if (mqtt_create() < 0) {
         return 0;
     }
+    strcpy(g_mac, argv[1]);
 
     err = stun_get_mapped_addr(&addr);
     if (err < 0) {
