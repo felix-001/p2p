@@ -223,6 +223,8 @@ void onConnect(void* context, MQTTAsync_successData* response)
         pubmsg.retained = 0;
         if ((rc = MQTTAsync_sendMessage(client, g_mac, &pubmsg, &opts)) != MQTTASYNC_SUCCESS) {
             LOGE("Failed to start sendMessage, return code %d\n", rc);
+        } else {
+            LOGI("mqtt publish tuple : %s success", tuple);
         }
     }
 }
