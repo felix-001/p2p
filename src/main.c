@@ -6,29 +6,16 @@
 */
 #include "public.h"
 #include "ministun.h"
-#include "mqtt.h"
-#include "sockets.h"
+#include "MQTTAsync.h"
 
-#define BROKER "mqtt.eclipse.org"
-#define PORT "1883"
+#define ADDRESS     "tcp://mqtt.eclipse.org:1883"
 
-static struct mqtt_client client;
+static MQTTAsync client;
 static uint8_t sendbuf[2048];
 static uint8_t recvbuf[1024];
 static int server_mode = 0;
 static char tuple[64];
-static char mac[16];
-
-static void* client_refresher(void* client)
-{
-    LOGI("client refresher enter...");
-    for(;;) {
-        mqtt_sync((struct mqtt_client*) client);
-        usleep(100000U);
-    }
-    return NULL;
-}
-
+static char g_mac[16];
 
 int get_mac_addr(char *addr)
 {
@@ -53,6 +40,31 @@ err:
     return -1;
 }
 
+void onDisconnectFailure(void* context, MQTTAsync_failureData* response)
+{
+	LOGE("Disconnect failed, rc %d\n", response->code);
+}
+
+void onDisconnect(void* context, MQTTAsync_successData* response)
+{
+	LOGI("Successful disconnection\n");
+}
+
+void onSubscribe(void* context, MQTTAsync_successData* response)
+{
+	LOGI("Subscribe succeeded\n");
+}
+
+void onSubscribeFailure(void* context, MQTTAsync_failureData* response)
+{
+	LOGE("Subscribe failed, rc %d\n", response->code);
+}
+
+void onConnectFailure(void* context, MQTTAsync_failureData* response)
+{
+	LOGE("Connect failed, rc %d\n", response->code);
+}
+
 void udp_session(char *ip, int port)
 {
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -75,7 +87,13 @@ void udp_session(char *ip, int port)
     addr.sin_family = AF_INET;
     sendto(sockfd, tuple, strlen(tuple), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    if (server_mode) {
+        sleep(1);
+    }
     recvfrom(sockfd, rcv, sizeof(rcv), 0, (struct sockaddr *)&addr, &addrlen);
+    if (server_mode) {
+        sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    }
     LOGI("%s", rcv);
 }
 
@@ -83,17 +101,6 @@ void nat_hole(char *tuple)
 {
     char *sub;
 
-    if (server_mode) {
-        enum MQTTErrors mqtt_ret;
-
-        LOGI("send tuple to client");
-        mqtt_ret = mqtt_publish(&client, mac, tuple, strlen(tuple), 0);
-        if (mqtt_ret != MQTT_OK) {
-            LOGE("mqtt_ret:%d", mqtt_ret);
-            return;
-        }
-        LOGI("server publish done");
-    }
     sub = strstr(tuple, ":");
     if (!sub) {
         LOGE("get `:` error");
@@ -103,60 +110,163 @@ void nat_hole(char *tuple)
     udp_session(tuple, atoi(sub+1));
 }
 
-void publish_callback(void** unused, struct mqtt_response_publish *published)
+void connlost(void *context, char *cause)
 {
-    char* topic_name = (char*) malloc(published->topic_name_size + 1);
+	MQTTAsync client = (MQTTAsync)context;
+	MQTTAsync_connectOptions conn_opts = MQTTAsync_connectOptions_initializer;
+	int rc;
 
-    memcpy(topic_name, published->topic_name, published->topic_name_size);
-    topic_name[published->topic_name_size] = '\0';
-    LOGI("Received publish('%s'): %s", topic_name, (const char*) published->application_message);
-    nat_hole((char*) published->application_message);
+	printf("\nConnection lost\n");
+	if (cause)
+		printf("     cause: %s\n", cause);
 
-    free(topic_name);
+	LOGI("Reconnecting\n");
+	conn_opts.keepAliveInterval = 20;
+	conn_opts.cleansession = 1;
+	if ((rc = MQTTAsync_connect(client, &conn_opts)) != MQTTASYNC_SUCCESS) {
+		LOGE("Failed to start connect, return code %d\n", rc);
+	}
 }
 
-int mqtt_create(char *mqtt_host, char * port,  char *user, char *passwd)
+void onSendFailure(void* context, MQTTAsync_failureData* response)
 {
-    int sockfd;
+	MQTTAsync client = (MQTTAsync)context;
+	MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
+	int rc;
+
+	LOGE("Message send failed token %d error code %d\n", response->token, response->code);
+	opts.onSuccess = onDisconnect;
+	opts.onFailure = onDisconnectFailure;
+	opts.context = client;
+	if ((rc = MQTTAsync_disconnect(client, &opts)) != MQTTASYNC_SUCCESS) {
+		LOGE("Failed to start disconnect, return code %d\n", rc);
+	}
+}
+
+void onSend(void* context, MQTTAsync_successData* response)
+{
+	MQTTAsync client = (MQTTAsync)context;
+	MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
+	int rc;
+
+	LOGI("Message with token value %d delivery confirmed\n", response->token);
+}
+
+int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
+{
+    printf("Message arrived\n");
+    printf("     topic: %s\n", topicName);
+    printf("   message: %.*s\n", message->payloadlen, (char*)message->payload);
+    if (server_mode) {
+        MQTTAsync client = (MQTTAsync)context;
+        MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+        MQTTAsync_message pubmsg = MQTTAsync_message_initializer;
+        int rc;
+
+        opts.onSuccess = onSend;
+        opts.onFailure = onSendFailure;
+        opts.context = client;
+        pubmsg.payload = tuple;
+        pubmsg.payloadlen = (int)strlen(tuple);
+        pubmsg.qos = 0;
+        pubmsg.retained = 0;
+        if ((rc = MQTTAsync_sendMessage(client, g_mac, &pubmsg, &opts)) != MQTTASYNC_SUCCESS) {
+            LOGE("Failed to start sendMessage, return code %d\n", rc);
+        } 
+    }
+    nat_hole((char*)message->payload);
+    MQTTAsync_freeMessage(&message);
+    MQTTAsync_free(topicName);
+    return 1;
+}
+
+
+
+void onConnect(void* context, MQTTAsync_successData* response)
+{
+	MQTTAsync client = (MQTTAsync)context;
+	MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
+    MQTTAsync_message pubmsg = MQTTAsync_message_initializer;
+	int rc;
     char mac[16] = {0};
-    pthread_t client_daemon;
+
+    if (get_mac_addr(mac) < 0 ) {
+        if (server_mode) {
+            strcpy(mac, "6c92bf328740");
+        } else {
+            LOGE("get mac addr error");
+            return;
+        }
+    }
+    LOGI("mac: %s", mac);
+	LOGI("Subscribing to topic %s\nfor client %s using QoS%d", mac, mac, 0);
+	opts.onSuccess = onSubscribe;
+	opts.onFailure = onSubscribeFailure;
+	opts.context = client;
+	if ((rc = MQTTAsync_subscribe(client, mac, 0, &opts)) != MQTTASYNC_SUCCESS){
+		LOGE("Failed to start subscribe, return code %d\n", rc);
+	}
+
+    if (!server_mode) {
+        opts.onSuccess = onSend;
+        opts.onFailure = onSendFailure;
+        opts.context = client;
+        pubmsg.payload = tuple;
+        pubmsg.payloadlen = (int)strlen(tuple);
+        pubmsg.qos = 0;
+        pubmsg.retained = 0;
+        if ((rc = MQTTAsync_sendMessage(client, g_mac, &pubmsg, &opts)) != MQTTASYNC_SUCCESS) {
+            LOGE("Failed to start sendMessage, return code %d\n", rc);
+        }
+    }
+}
+
+int mqtt_create()
+{
+	MQTTAsync_connectOptions conn_opts = MQTTAsync_connectOptions_initializer;
+	MQTTAsync_disconnectOptions disc_opts = MQTTAsync_disconnectOptions_initializer;
+    char mac[16] = {0};
+    int rc;
 
     if (get_mac_addr(mac) < 0) {
         if (server_mode) {
             strcpy(mac, "6c92bf328740");
         } else {
             LOGE("get mac addr error");
-            goto err;
+            goto exit;
         }
     }
-    sockfd = open_nb_socket(mqtt_host, port);
-    if (sockfd == -1) {
-        perror("Failed to open socket: ");
-        goto err;
-    }
-    mqtt_init(&client, sockfd, sendbuf, sizeof(sendbuf), recvbuf, sizeof(recvbuf), publish_callback);
-    mqtt_connect(&client, mac, NULL, NULL, 0, user, passwd, MQTT_CONNECT_CLEAN_SESSION, 400);
-    if (client.error != MQTT_OK) {
-        fprintf(stderr, "error: %s\n", mqtt_error_str(client.error));
-        goto err;
-    } else {
-        LOGI("mqtt connect %s:%s success", mqtt_host, port);
-    }
-    if(pthread_create(&client_daemon, NULL, client_refresher, &client)) {
-        fprintf(stderr, "Failed to start client daemon.\n");
-        goto err;
-    }
+
+	if ((rc = MQTTAsync_create(&client, ADDRESS, mac, MQTTCLIENT_PERSISTENCE_NONE, NULL))
+			!= MQTTASYNC_SUCCESS) {
+		LOGE("Failed to create client, return code %d\n", rc);
+		goto exit;
+	}
+
+	if ((rc = MQTTAsync_setCallbacks(client, client, connlost, msgarrvd, NULL)) != MQTTASYNC_SUCCESS) {
+		printf("Failed to set callbacks, return code %d\n", rc);
+		goto exit;
+	}
+
+	conn_opts.keepAliveInterval = 20;
+	conn_opts.cleansession = 1;
+	conn_opts.onSuccess = onConnect;
+	conn_opts.onFailure = onConnectFailure;
+	conn_opts.context = client;
+	if ((rc = MQTTAsync_connect(client, &conn_opts)) != MQTTASYNC_SUCCESS) {
+		LOGE("Failed to start connect, return code %d\n", rc);
+		goto exit;
+	}
 
     return 0;
-err:
+ exit:
     return -1;
-}
+} 
 
 int main(int argc, char *argv[])
 {
     int err = 0;
     struct sockaddr_in addr;
-    enum MQTTErrors mqtt_ret;
 
     if (!argv[1]) {
         printf("usage: %s <mac_address>\n", argv[0]);
@@ -167,24 +277,10 @@ int main(int argc, char *argv[])
         server_mode = 1;
     }
 
-    if (mqtt_create(BROKER, PORT, NULL, NULL) < 0) {
+    if (mqtt_create() < 0) {
         return 0;
     }
 
-    if (get_mac_addr(mac) < 0 ) {
-        if (server_mode) {
-            strcpy(mac, "6c92bf328740");
-        } else {
-            LOGE("get mac addr error");
-            return 0;
-        }
-    }
-    LOGI("mac: %s", mac);
-    mqtt_ret = mqtt_subscribe(&client, mac, 1);
-    if (mqtt_ret != MQTT_OK) {
-        LOGE("mqtt_ret:%d", mqtt_ret);
-        return 0;
-    }
     err = stun_get_mapped_addr(&addr);
     if (err < 0) {
         LOGE("stun_get_mapped_addr() error:%d", err);
@@ -192,13 +288,9 @@ int main(int argc, char *argv[])
     }
     LOGI("mapped addr: %s:%d", inet_ntoa(addr.sin_addr), addr.sin_port);
     sprintf(tuple, "%s:%d", inet_ntoa(addr.sin_addr), addr.sin_port);
-    if (!server_mode) {
-        mqtt_ret = mqtt_publish(&client, argv[1], tuple, strlen(tuple), 0);
-        if (mqtt_ret != MQTT_OK) {
-            LOGE("mqtt_ret:%d", mqtt_ret);
-            return 0;
-        }
+    
+    while(getchar() != 'q') {
+        usleep(100);
     }
-    while(fgetc(stdin) != EOF);
     return 0;
 }
