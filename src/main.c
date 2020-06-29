@@ -11,9 +11,8 @@
 #define ADDRESS     "tcp://mqtt.eclipse.org:1883"
 
 static MQTTAsync client;
-static uint8_t sendbuf[2048];
-static uint8_t recvbuf[1024];
 static int server_mode = 0;
+static int disc_finished = 0;
 static char tuple[64];
 static char g_mac[16];
 
@@ -43,11 +42,13 @@ err:
 void onDisconnectFailure(void* context, MQTTAsync_failureData* response)
 {
 	LOGE("Disconnect failed, rc %d\n", response->code);
+    disc_finished = 1;
 }
 
 void onDisconnect(void* context, MQTTAsync_successData* response)
 {
 	LOGI("Successful disconnection\n");
+    disc_finished = 1;
 }
 
 void onSubscribe(void* context, MQTTAsync_successData* response)
@@ -180,8 +181,6 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *me
     return 1;
 }
 
-
-
 void onConnect(void* context, MQTTAsync_successData* response)
 {
 	MQTTAsync client = (MQTTAsync)context;
@@ -299,5 +298,9 @@ int main(int argc, char *argv[])
 	if ((err = MQTTAsync_disconnect(client, &disc_opts)) != MQTTASYNC_SUCCESS) {
 		LOGE("Failed to start disconnect, return code %d\n", err);
 	}
+    while(!disc_finished) {
+        usleep(100);
+    }
+    MQTTAsync_destroy(&client);
     return 0;
 }
