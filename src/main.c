@@ -293,10 +293,13 @@ int main(int argc, char *argv[])
 	disc_opts.onFailure = onDisconnectFailure;
 	if ((err = MQTTAsync_disconnect(client, &disc_opts)) != MQTTASYNC_SUCCESS) {
 		LOGE("Failed to start disconnect, return code %d\n", err);
-	}
+	} else {
+        LOGI("done");
+    }
     while(!disc_finished) {
         usleep(100);
     }
+    LOGI("destory mqtt client");
     MQTTAsync_destroy(&client);
     return 0;
 }
