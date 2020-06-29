@@ -113,6 +113,7 @@ void udp_session(char *ip, int port)
     sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     if (server_mode) {
         sleep(1);
+        LOGI("second time send hole to %s:%d", ip, port);
         sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     }
     recvfrom(sockfd, rcv, sizeof(rcv), 0, (struct sockaddr *)&addr, &addrlen);
