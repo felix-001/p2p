@@ -146,10 +146,6 @@ void onSendFailure(void* context, MQTTAsync_failureData* response)
 
 void onSend(void* context, MQTTAsync_successData* response)
 {
-	MQTTAsync client = (MQTTAsync)context;
-	MQTTAsync_disconnectOptions opts = MQTTAsync_disconnectOptions_initializer;
-	int rc;
-
 	LOGI("Message with token value %d delivery confirmed\n", response->token);
 }
 
@@ -223,7 +219,6 @@ void onConnect(void* context, MQTTAsync_successData* response)
 int mqtt_create()
 {
 	MQTTAsync_connectOptions conn_opts = MQTTAsync_connectOptions_initializer;
-	MQTTAsync_disconnectOptions disc_opts = MQTTAsync_disconnectOptions_initializer;
     char mac[16] = {0};
     int rc;
 
@@ -293,6 +288,7 @@ int main(int argc, char *argv[])
     while(getchar() != 'q') {
         usleep(100);
     }
+    LOGI("disconnect mqtt");
     disc_opts.onSuccess = onDisconnect;
 	disc_opts.onFailure = onDisconnectFailure;
 	if ((err = MQTTAsync_disconnect(client, &disc_opts)) != MQTTASYNC_SUCCESS) {
