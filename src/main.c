@@ -97,7 +97,7 @@ void udp_session(char *ip, int port)
     
     LOGI("ip:%s port:%d", ip, port);
     if (!sockfd) {
-        perror("create socket error");
+        LOGI("create socket error");
         return;
     }
     if (server_mode) {
@@ -108,6 +108,7 @@ void udp_session(char *ip, int port)
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = inet_addr(ip);
     addr.sin_family = AF_INET;
+    LOGI("send hole to %s:%d", ip, port);
     sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     sendto(sockfd, msg, strlen(msg), 0, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     if (server_mode) {
