@@ -29,7 +29,7 @@ int get_mac_addr(char *addr)
     }
     strcpy(ifreq.ifr_name, "eth0");
     if(ioctl(sock, SIOCGIFHWADDR, &ifreq)<0) {
-        perror("SIOCGIFHWADDR");
+        LOGI("SIOCGIFHWADDR: %s", strerror(errno));
         goto err;
     }
     for (i=0; i<6; i++) {
@@ -267,6 +267,7 @@ int main(int argc, char *argv[])
 {
     int err = 0;
     struct sockaddr_in addr;
+    MQTTAsync_disconnectOptions disc_opts = MQTTAsync_disconnectOptions_initializer;
 
     if (!argv[1]) {
         printf("usage: %s <mac_address>\n", argv[0]);
@@ -293,5 +294,10 @@ int main(int argc, char *argv[])
     while(getchar() != 'q') {
         usleep(100);
     }
+    disc_opts.onSuccess = onDisconnect;
+	disc_opts.onFailure = onDisconnectFailure;
+	if ((err = MQTTAsync_disconnect(client, &disc_opts)) != MQTTASYNC_SUCCESS) {
+		LOGE("Failed to start disconnect, return code %d\n", err);
+	}
     return 0;
 }
