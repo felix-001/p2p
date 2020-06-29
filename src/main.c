@@ -182,7 +182,7 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *me
             LOGE("Failed to start sendMessage, return code %d", rc);
         } 
     }
-    LOGI("message: %.*s\n", message->payloadlen, (char*)message->payload);
+    LOGI("message: %.*s", message->payloadlen, (char*)message->payload);
     MQTTAsync_freeMessage(&message);
     MQTTAsync_free(topicName);
     return 1;
