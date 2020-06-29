@@ -207,8 +207,7 @@ void onConnect(void* context, MQTTAsync_successData* response)
         if (server_mode) {
             strcpy(mac, "6c92bf328740");
         } else {
-            LOGE("get mac addr error");
-            return;
+            strcpy(mac, "8476379239d6");
         }
     }
     LOGI("mac: %s", mac);
@@ -234,8 +233,7 @@ int mqtt_create()
         if (server_mode) {
             strcpy(mac, "6c92bf328740");
         } else {
-            LOGE("get mac addr error");
-            goto exit;
+            strcpy(mac, "8476379239d6");
         }
     }
 
