@@ -167,6 +167,8 @@ void *session_thread(void *arg)
 
 int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *message)
 {
+    pthread_t tid;
+
     printf("Message arrived\n");
     printf("     topic: %s\n", topicName);
 
@@ -188,6 +190,7 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *me
         } 
     }
     LOGI("message: %.*s", message->payloadlen, (char*)message->payload);
+    pthread_create(&tid, NULL, session_thread, message->payload);
     MQTTAsync_freeMessage(&message);
     MQTTAsync_free(topicName);
     return 1;
@@ -197,7 +200,6 @@ void onConnect(void* context, MQTTAsync_successData* response)
 {
 	MQTTAsync client = (MQTTAsync)context;
 	MQTTAsync_responseOptions opts = MQTTAsync_responseOptions_initializer;
-    MQTTAsync_message pubmsg = MQTTAsync_message_initializer;
 	int rc;
     char mac[16] = {0};
 
